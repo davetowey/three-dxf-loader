@@ -1,0 +1,19 @@
+{
+  "name": "three-dxf-loader",
+  "version": "0.0.1",
+  "description": "A DXF loader for three.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davetowey/three-dxf-loader.git"
+  },
+  "author": "Dave Towey <davetowey@gmail.com> (http://davetowey.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/davetowey/three-dxf-loader/issues"
+  },
+  "homepage": "https://github.com/davetowey/three-dxf-loader#readme"
+}
