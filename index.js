@@ -1,3 +1,5 @@
+import THREE as 'three';
+
 (function () {
 // A DXF Loader for three.js
 // based heavily on three-dxf 0.1.2

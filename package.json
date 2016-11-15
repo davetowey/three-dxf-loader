@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/davetowey/three-dxf-loader/issues"
   },
-  "homepage": "https://github.com/davetowey/three-dxf-loader#readme"
+  "homepage": "https://github.com/davetowey/three-dxf-loader#readme",
+  "dependencies": {
+    "three": "^0.82.1"
+  }
 }
