@@ -1,3 +1,4 @@
+(function () {
 // A DXF Loader for three.js
 // based heavily on three-dxf 0.1.2
 // https://github.com/gdsestimating/three-dxf
@@ -442,9 +443,7 @@ THREE.DXFLoader.prototype = {
         return dashedLineShader;
     }
 
-
-
-
   }
 
 };
+})();
