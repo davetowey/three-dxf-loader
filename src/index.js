@@ -16,6 +16,7 @@
 
 var THREE = require('three');
 
+Extension = {};
 //var THREE = THREELib();
 
 THREE.Math.angle2 = function(p1, p2) {
@@ -42,7 +43,7 @@ THREE.Math.polar = function(point, distance, angle) {
  * @param bulge - a value indicating how much to curve
  * @param segments - number of segments between the two given points
  */
-THREE.BulgeGeometry = function ( startPoint, endPoint, bulge, segments ) {
+Extension.BulgeGeometry = function ( startPoint, endPoint, bulge, segments ) {
 
 	var vertex, i,
 		center, p0, p1, angle,
@@ -76,7 +77,7 @@ THREE.BulgeGeometry = function ( startPoint, endPoint, bulge, segments ) {
 
 };
 
-THREE.BulgeGeometry.prototype = Object.create( THREE.Geometry.prototype );
+Extension.BulgeGeometry.prototype = Object.create( THREE.Geometry.prototype );
 
 
 THREE.DXFLoader = function ( manager ) {
@@ -184,7 +185,7 @@ THREE.DXFLoader.prototype = {
                 startPoint = entity.vertices[i];
                 endPoint = i + 1 < entity.vertices.length ? entity.vertices[i + 1] : geometry.vertices[0];
 
-                bulgeGeometry = new THREE.BulgeGeometry(startPoint, endPoint, bulge);
+                bulgeGeometry = new Extension.BulgeGeometry(startPoint, endPoint, bulge);
 
                 geometry.vertices.push.apply(geometry.vertices, bulgeGeometry.vertices);
             } else {
