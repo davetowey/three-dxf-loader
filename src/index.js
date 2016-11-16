@@ -16,7 +16,7 @@
 
 var THREE = require('three');
 
-Extension = {};
+var Extension = {};
 //var THREE = THREELib();
 
 THREE.Math.angle2 = function(p1, p2) {

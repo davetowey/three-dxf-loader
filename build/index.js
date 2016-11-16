@@ -42312,7 +42312,7 @@ var require$$0 = ( three_modules && three_modules['default'] ) || three_modules;
 
 var THREE = require$$0;
 
-Extension = {};
+var Extension = {};
 //var THREE = THREELib();
 
 THREE.Math.angle2 = function (p1, p2) {
