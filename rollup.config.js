@@ -5,8 +5,8 @@ import commonjs from 'rollup-plugin-commonjs';
 export default {
   entry: 'src/index.js',
   dest: 'build/index.js',
-  format: 'iife',
-  moduleName: 'DXFLoader',
+  format: 'cjs',
+  moduleName: 'THREEDXFLoader',
   plugins: [
     resolve({
       jsnext: true,

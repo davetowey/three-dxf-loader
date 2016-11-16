@@ -5,6 +5,8 @@
 // Depends on dxf-parser
 // https://github.com/gdsestimating/dxf-parser
 
+import DXFParser from 'dxf-parser';
+
 /**
  * Returns the angle in radians of the vector (p1,p2). In other words, imagine
  * putting the base of the vector at coordinates (0,0) and finding the angle
@@ -14,10 +16,7 @@
  * @return {Number} the angle
  */
 
-var THREE = require('three');
-
-var Extension = {};
-//var THREE = THREELib();
+module.exports = function (THREE) {
 
 THREE.Math.angle2 = function(p1, p2) {
 	var v1 = new THREE.Vector2(p1.x, p1.y);
@@ -43,7 +42,7 @@ THREE.Math.polar = function(point, distance, angle) {
  * @param bulge - a value indicating how much to curve
  * @param segments - number of segments between the two given points
  */
-Extension.BulgeGeometry = function ( startPoint, endPoint, bulge, segments ) {
+THREE.BulgeGeometry = function ( startPoint, endPoint, bulge, segments ) {
 
 	var vertex, i,
 		center, p0, p1, angle,
@@ -77,7 +76,7 @@ Extension.BulgeGeometry = function ( startPoint, endPoint, bulge, segments ) {
 
 };
 
-Extension.BulgeGeometry.prototype = Object.create( THREE.Geometry.prototype );
+THREE.BulgeGeometry.prototype = Object.create( THREE.Geometry.prototype );
 
 
 THREE.DXFLoader = function ( manager ) {
@@ -185,7 +184,7 @@ THREE.DXFLoader.prototype = {
                 startPoint = entity.vertices[i];
                 endPoint = i + 1 < entity.vertices.length ? entity.vertices[i + 1] : geometry.vertices[0];
 
-                bulgeGeometry = new Extension.BulgeGeometry(startPoint, endPoint, bulge);
+                bulgeGeometry = new THREE.BulgeGeometry(startPoint, endPoint, bulge);
 
                 geometry.vertices.push.apply(geometry.vertices, bulgeGeometry.vertices);
             } else {
@@ -448,5 +447,7 @@ THREE.DXFLoader.prototype = {
     }
 
   }
+
+};
 
 };

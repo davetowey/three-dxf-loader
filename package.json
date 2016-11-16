@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/davetowey/three-dxf-loader#readme",
   "dependencies": {
+    "dxf-parser": "^0.4.6",
     "three": "^0.82.1"
   },
   "devDependencies": {
