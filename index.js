@@ -1,5 +1,3 @@
-import THREE as 'three';
-
 (function () {
 // A DXF Loader for three.js
 // based heavily on three-dxf 0.1.2
@@ -8,6 +6,7 @@ import THREE as 'three';
 // Depends on dxf-parser
 // https://github.com/gdsestimating/dxf-parser
 
+import THREE from 'three';
 
 /**
  * Returns the angle in radians of the vector (p1,p2). In other words, imagine
