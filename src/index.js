@@ -14,7 +14,7 @@
  * @return {Number} the angle
  */
 
-import * as THREE from 'three';
+import { Math } from 'three';
 
 THREE.Math.angle2 = function(p1, p2) {
 	var v1 = new THREE.Vector2(p1.x, p1.y);
