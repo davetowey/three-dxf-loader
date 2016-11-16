@@ -1,12 +1,9 @@
-(function () {
 // A DXF Loader for three.js
 // based heavily on three-dxf 0.1.2
 // https://github.com/gdsestimating/three-dxf
 
 // Depends on dxf-parser
 // https://github.com/gdsestimating/dxf-parser
-
-import THREE from 'three';
 
 /**
  * Returns the angle in radians of the vector (p1,p2). In other words, imagine
@@ -16,6 +13,9 @@ import THREE from 'three';
  * @param  {Object} p2 end point of the vector
  * @return {Number} the angle
  */
+
+import THREE from 'three';
+
 THREE.Math.angle2 = function(p1, p2) {
 	var v1 = new THREE.Vector2(p1.x, p1.y);
 	var v2 = new THREE.Vector2(p2.x, p2.y);
@@ -447,4 +447,3 @@ THREE.DXFLoader.prototype = {
   }
 
 };
-})();
