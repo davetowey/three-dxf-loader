@@ -39793,14 +39793,14 @@ THREE.Math.angle2 = function (p1, p2) {
     var v2 = new THREE.Vector2(p2.x, p2.y);
     v2.sub(v1); // sets v2 to be our chord
     v2.normalize();
-    if (v2.y < 0) return -_Math.acos(v2.x);
-    return _Math.acos(v2.x);
+    if (v2.y < 0) return -Math.acos(v2.x);
+    return Math.acos(v2.x);
 };
 
 THREE.Math.polar = function (point, distance, angle) {
     var result = {};
-    result.x = point.x + distance * _Math.cos(angle);
-    result.y = point.y + distance * _Math.sin(angle);
+    result.x = point.x + distance * Math.cos(angle);
+    result.y = point.y + distance * Math.sin(angle);
     return result;
 };
 
@@ -39821,11 +39821,11 @@ THREE.BulgeGeometry = function (startPoint, endPoint, bulge, segments) {
     this.endPoint = p1 = endPoint ? new THREE.Vector2(endPoint.x, endPoint.y) : new THREE.Vector2(1, 0);
     this.bulge = bulge = bulge || 1;
 
-    angle = 4 * _Math.atan(bulge);
-    radius = p0.distanceTo(p1) / 2 / _Math.sin(angle / 2);
-    center = THREE.Math.polar(startPoint, radius, THREE.Math.angle2(p0, p1) + (_Math.PI / 2 - angle / 2));
+    angle = 4 * Math.atan(bulge);
+    radius = p0.distanceTo(p1) / 2 / Math.sin(angle / 2);
+    center = THREE.Math.polar(startPoint, radius, THREE.Math.angle2(p0, p1) + (Math.PI / 2 - angle / 2));
 
-    this.segments = segments = segments || _Math.max(_Math.abs(_Math.ceil(angle / (_Math.PI / 18))), 6); // By default want a segment roughly every 10 degrees
+    this.segments = segments = segments || Math.max(Math.abs(Math.ceil(angle / (Math.PI / 18))), 6); // By default want a segment roughly every 10 degrees
     startAngle = THREE.Math.angle2(center, p0);
     thetaAngle = angle / segments;
 
@@ -39833,7 +39833,7 @@ THREE.BulgeGeometry = function (startPoint, endPoint, bulge, segments) {
 
     for (i = 1; i <= segments - 1; i++) {
 
-        vertex = THREE.Math.polar(center, _Math.abs(radius), startAngle + thetaAngle * i);
+        vertex = THREE.Math.polar(center, Math.abs(radius), startAngle + thetaAngle * i);
 
         this.vertices.push(new THREE.Vector3(vertex.x, vertex.y, 0));
     }
@@ -40088,7 +40088,7 @@ THREE.DXFLoader.prototype = {
             if (entity.yScale) group.scale.y = entity.yScale;
 
             if (entity.rotation) {
-                group.rotation.z = entity.rotation * _Math.PI / 180;
+                group.rotation.z = entity.rotation * Math.PI / 180;
             }
 
             if (entity.position) {
@@ -40133,7 +40133,7 @@ THREE.DXFLoader.prototype = {
                 totalLength = 0.0;
 
             for (i = 0; i < pattern.length; i++) {
-                totalLength += _Math.abs(pattern[i]);
+                totalLength += Math.abs(pattern[i]);
             }
 
             dashedLineShader.uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib['common'], THREE.UniformsLib['fog'], {
