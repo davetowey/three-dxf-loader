@@ -8,7 +8,7 @@ export default {
   format: 'iife',
   plugins: [
     resolve({
-      jsnext: false,
+      jsnext: true,
       main: true,
       browser: true,
     }),
