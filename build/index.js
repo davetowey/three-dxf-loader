@@ -1,4 +1,4 @@
-var three-dxf-loader = (function () {
+var DXFLoader = (function () {
 'use strict';
 
 // Polyfills
