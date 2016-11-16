@@ -14,9 +14,9 @@
  * @return {Number} the angle
  */
 
-import THREELib from 'three';
+var THREE = require('three');
 
-var THREE = THREELib();
+//var THREE = THREELib();
 
 THREE.Math.angle2 = function(p1, p2) {
 	var v1 = new THREE.Vector2(p1.x, p1.y);

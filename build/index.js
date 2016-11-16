@@ -1,4 +1,4 @@
-(function () {
+var three-dxf-loader = (function () {
 'use strict';
 
 // Polyfills
@@ -185,10 +185,14 @@ Object.assign( EventDispatcher.prototype, {
 } );
 
 var REVISION = '82';
+var MOUSE = { LEFT: 0, MIDDLE: 1, RIGHT: 2 };
 var CullFaceNone = 0;
 var CullFaceBack = 1;
 var CullFaceFront = 2;
+var CullFaceFrontBack = 3;
 var FrontFaceDirectionCW = 0;
+var FrontFaceDirectionCCW = 1;
+var BasicShadowMap = 0;
 var PCFShadowMap = 1;
 var PCFSoftShadowMap = 2;
 var FrontSide = 0;
@@ -302,6 +306,7 @@ var RGBFormat = 1022;
 var RGBAFormat = 1023;
 var LuminanceFormat = 1024;
 var LuminanceAlphaFormat = 1025;
+var RGBEFormat = RGBAFormat;
 var DepthFormat = 1026;
 var DepthStencilFormat = 1027;
 var RGB_S3TC_DXT1_Format = 2001;
@@ -329,6 +334,7 @@ var LinearEncoding = 3000;
 var sRGBEncoding = 3001;
 var GammaEncoding = 3007;
 var RGBEEncoding = 3002;
+var LogLuvEncoding = 3003;
 var RGBM7Encoding = 3004;
 var RGBM16Encoding = 3005;
 var RGBDEncoding = 3006;
@@ -12095,9 +12101,41 @@ BufferAttribute.prototype = {
 
 };
 
+//
+
+function Int8Attribute( array, itemSize ) {
+
+	return new BufferAttribute( new Int8Array( array ), itemSize );
+
+}
+
+function Uint8Attribute( array, itemSize ) {
+
+	return new BufferAttribute( new Uint8Array( array ), itemSize );
+
+}
+
+function Uint8ClampedAttribute( array, itemSize ) {
+
+	return new BufferAttribute( new Uint8ClampedArray( array ), itemSize );
+
+}
+
+function Int16Attribute( array, itemSize ) {
+
+	return new BufferAttribute( new Int16Array( array ), itemSize );
+
+}
+
 function Uint16Attribute( array, itemSize ) {
 
 	return new BufferAttribute( new Uint16Array( array ), itemSize );
+
+}
+
+function Int32Attribute( array, itemSize ) {
+
+	return new BufferAttribute( new Int32Array( array ), itemSize );
 
 }
 
@@ -12110,6 +12148,21 @@ function Uint32Attribute( array, itemSize ) {
 function Float32Attribute( array, itemSize ) {
 
 	return new BufferAttribute( new Float32Array( array ), itemSize );
+
+}
+
+function Float64Attribute( array, itemSize ) {
+
+	return new BufferAttribute( new Float64Array( array ), itemSize );
+
+}
+
+// Deprecated
+
+function DynamicBufferAttribute( array, itemSize ) {
+
+	console.warn( 'THREE.DynamicBufferAttribute has been removed. Use new THREE.BufferAttribute().setDynamic( true ) instead.' );
+	return new BufferAttribute( array, itemSize ).setDynamic( true );
 
 }
 
@@ -23614,6 +23667,37 @@ Group.prototype = Object.assign( Object.create( Object3D.prototype ), {
 } );
 
 /**
+ * @author mrdoob / http://mrdoob.com/
+ */
+
+function VideoTexture( video, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy ) {
+
+	Texture.call( this, video, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy );
+
+	this.generateMipmaps = false;
+
+	var scope = this;
+
+	function update() {
+
+		requestAnimationFrame( update );
+
+		if ( video.readyState >= video.HAVE_CURRENT_DATA ) {
+
+			scope.needsUpdate = true;
+
+		}
+
+	}
+
+	update();
+
+}
+
+VideoTexture.prototype = Object.create( Texture.prototype );
+VideoTexture.prototype.constructor = VideoTexture;
+
+/**
  * @author alteredq / http://alteredqualia.com/
  */
 
@@ -23640,6 +23724,54 @@ CompressedTexture.prototype = Object.create( Texture.prototype );
 CompressedTexture.prototype.constructor = CompressedTexture;
 
 CompressedTexture.prototype.isCompressedTexture = true;
+
+/**
+ * @author mrdoob / http://mrdoob.com/
+ */
+
+function CanvasTexture( canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy ) {
+
+	Texture.call( this, canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy );
+
+	this.needsUpdate = true;
+
+}
+
+CanvasTexture.prototype = Object.create( Texture.prototype );
+CanvasTexture.prototype.constructor = CanvasTexture;
+
+/**
+ * @author Matt DesLauriers / @mattdesl
+ * @author atix / arthursilber.de
+ */
+
+function DepthTexture( width, height, type, mapping, wrapS, wrapT, magFilter, minFilter, anisotropy, format ) {
+
+	format = format !== undefined ? format : DepthFormat;
+
+	if ( format !== DepthFormat && format !== DepthStencilFormat ) {
+
+		throw new Error( 'DepthTexture format must be either THREE.DepthFormat or THREE.DepthStencilFormat' )
+
+	}
+
+	Texture.call( this, null, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy );
+
+	this.image = { width: width, height: height };
+
+	this.type = type !== undefined ? type : UnsignedShortType;
+
+	this.magFilter = magFilter !== undefined ? magFilter : NearestFilter;
+	this.minFilter = minFilter !== undefined ? minFilter : NearestFilter;
+
+	this.flipY = false;
+	this.generateMipmaps	= false;
+
+}
+
+DepthTexture.prototype = Object.create( Texture.prototype );
+DepthTexture.prototype.constructor = DepthTexture;
+DepthTexture.prototype.isDepthTexture = true;
 
 /**
  * @author mrdoob / http://mrdoob.com/
@@ -29081,6 +29213,13 @@ Object.assign( CompressedTextureLoader.prototype, {
 
 } );
 
+/**
+ * @author Nikos M. / https://github.com/foo123/
+ *
+ * Abstract Base class to load generic binary textures formats (rgbe, hdr, ...)
+ */
+
+var DataTextureLoader = BinaryTextureLoader;
 function BinaryTextureLoader( manager ) {
 
 	this.manager = ( manager !== undefined ) ? manager : DefaultLoadingManager;
@@ -35032,6 +35171,93 @@ Object.assign( StereoCamera.prototype, {
 } );
 
 /**
+ * Camera for rendering cube maps
+ *	- renders scene into axis-aligned cube
+ *
+ * @author alteredq / http://alteredqualia.com/
+ */
+
+function CubeCamera( near, far, cubeResolution ) {
+
+	Object3D.call( this );
+
+	this.type = 'CubeCamera';
+
+	var fov = 90, aspect = 1;
+
+	var cameraPX = new PerspectiveCamera( fov, aspect, near, far );
+	cameraPX.up.set( 0, - 1, 0 );
+	cameraPX.lookAt( new Vector3( 1, 0, 0 ) );
+	this.add( cameraPX );
+
+	var cameraNX = new PerspectiveCamera( fov, aspect, near, far );
+	cameraNX.up.set( 0, - 1, 0 );
+	cameraNX.lookAt( new Vector3( - 1, 0, 0 ) );
+	this.add( cameraNX );
+
+	var cameraPY = new PerspectiveCamera( fov, aspect, near, far );
+	cameraPY.up.set( 0, 0, 1 );
+	cameraPY.lookAt( new Vector3( 0, 1, 0 ) );
+	this.add( cameraPY );
+
+	var cameraNY = new PerspectiveCamera( fov, aspect, near, far );
+	cameraNY.up.set( 0, 0, - 1 );
+	cameraNY.lookAt( new Vector3( 0, - 1, 0 ) );
+	this.add( cameraNY );
+
+	var cameraPZ = new PerspectiveCamera( fov, aspect, near, far );
+	cameraPZ.up.set( 0, - 1, 0 );
+	cameraPZ.lookAt( new Vector3( 0, 0, 1 ) );
+	this.add( cameraPZ );
+
+	var cameraNZ = new PerspectiveCamera( fov, aspect, near, far );
+	cameraNZ.up.set( 0, - 1, 0 );
+	cameraNZ.lookAt( new Vector3( 0, 0, - 1 ) );
+	this.add( cameraNZ );
+
+	var options = { format: RGBFormat, magFilter: LinearFilter, minFilter: LinearFilter };
+
+	this.renderTarget = new WebGLRenderTargetCube( cubeResolution, cubeResolution, options );
+
+	this.updateCubeMap = function ( renderer, scene ) {
+
+		if ( this.parent === null ) this.updateMatrixWorld();
+
+		var renderTarget = this.renderTarget;
+		var generateMipmaps = renderTarget.texture.generateMipmaps;
+
+		renderTarget.texture.generateMipmaps = false;
+
+		renderTarget.activeCubeFace = 0;
+		renderer.render( scene, cameraPX, renderTarget );
+
+		renderTarget.activeCubeFace = 1;
+		renderer.render( scene, cameraNX, renderTarget );
+
+		renderTarget.activeCubeFace = 2;
+		renderer.render( scene, cameraPY, renderTarget );
+
+		renderTarget.activeCubeFace = 3;
+		renderer.render( scene, cameraNY, renderTarget );
+
+		renderTarget.activeCubeFace = 4;
+		renderer.render( scene, cameraPZ, renderTarget );
+
+		renderTarget.texture.generateMipmaps = generateMipmaps;
+
+		renderTarget.activeCubeFace = 5;
+		renderer.render( scene, cameraNZ, renderTarget );
+
+		renderer.setRenderTarget( null );
+
+	};
+
+}
+
+CubeCamera.prototype = Object.create( Object3D.prototype );
+CubeCamera.prototype.constructor = CubeCamera;
+
+/**
  * @author mrdoob / http://mrdoob.com/
  */
 
@@ -36410,6 +36636,377 @@ PropertyBinding.findNode = function( root, nodeName ) {
 	}
 
 	return null;
+
+};
+
+/**
+ *
+ * A group of objects that receives a shared animation state.
+ *
+ * Usage:
+ *
+ * 	-	Add objects you would otherwise pass as 'root' to the
+ * 		constructor or the .clipAction method of AnimationMixer.
+ *
+ * 	-	Instead pass this object as 'root'.
+ *
+ * 	-	You can also add and remove objects later when the mixer
+ * 		is running.
+ *
+ * Note:
+ *
+ *  	Objects of this class appear as one object to the mixer,
+ *  	so cache control of the individual objects must be done
+ *  	on the group.
+ *
+ * Limitation:
+ *
+ * 	- 	The animated properties must be compatible among the
+ * 		all objects in the group.
+ *
+ *  -	A single property can either be controlled through a
+ *  	target group or directly, but not both.
+ *
+ * @author tschw
+ */
+
+function AnimationObjectGroup( var_args ) {
+
+	this.uuid = _Math.generateUUID();
+
+	// cached objects followed by the active ones
+	this._objects = Array.prototype.slice.call( arguments );
+
+	this.nCachedObjects_ = 0;			// threshold
+	// note: read by PropertyBinding.Composite
+
+	var indices = {};
+	this._indicesByUUID = indices;		// for bookkeeping
+
+	for ( var i = 0, n = arguments.length; i !== n; ++ i ) {
+
+		indices[ arguments[ i ].uuid ] = i;
+
+	}
+
+	this._paths = [];					// inside: string
+	this._parsedPaths = [];				// inside: { we don't care, here }
+	this._bindings = []; 				// inside: Array< PropertyBinding >
+	this._bindingsIndicesByPath = {}; 	// inside: indices in these arrays
+
+	var scope = this;
+
+	this.stats = {
+
+		objects: {
+			get total() { return scope._objects.length; },
+			get inUse() { return this.total - scope.nCachedObjects_;  }
+		},
+
+		get bindingsPerObject() { return scope._bindings.length; }
+
+	};
+
+}
+
+AnimationObjectGroup.prototype = {
+
+	constructor: AnimationObjectGroup,
+
+	isAnimationObjectGroup: true,
+
+	add: function( var_args ) {
+
+		var objects = this._objects,
+			nObjects = objects.length,
+			nCachedObjects = this.nCachedObjects_,
+			indicesByUUID = this._indicesByUUID,
+			paths = this._paths,
+			parsedPaths = this._parsedPaths,
+			bindings = this._bindings,
+			nBindings = bindings.length;
+
+		for ( var i = 0, n = arguments.length; i !== n; ++ i ) {
+
+			var object = arguments[ i ],
+				uuid = object.uuid,
+				index = indicesByUUID[ uuid ];
+
+			if ( index === undefined ) {
+
+				// unknown object -> add it to the ACTIVE region
+
+				index = nObjects ++;
+				indicesByUUID[ uuid ] = index;
+				objects.push( object );
+
+				// accounting is done, now do the same for all bindings
+
+				for ( var j = 0, m = nBindings; j !== m; ++ j ) {
+
+					bindings[ j ].push(
+							new PropertyBinding(
+								object, paths[ j ], parsedPaths[ j ] ) );
+
+				}
+
+			} else if ( index < nCachedObjects ) {
+
+				var knownObject = objects[ index ];
+
+				// move existing object to the ACTIVE region
+
+				var firstActiveIndex = -- nCachedObjects,
+					lastCachedObject = objects[ firstActiveIndex ];
+
+				indicesByUUID[ lastCachedObject.uuid ] = index;
+				objects[ index ] = lastCachedObject;
+
+				indicesByUUID[ uuid ] = firstActiveIndex;
+				objects[ firstActiveIndex ] = object;
+
+				// accounting is done, now do the same for all bindings
+
+				for ( var j = 0, m = nBindings; j !== m; ++ j ) {
+
+					var bindingsForPath = bindings[ j ],
+						lastCached = bindingsForPath[ firstActiveIndex ],
+						binding = bindingsForPath[ index ];
+
+					bindingsForPath[ index ] = lastCached;
+
+					if ( binding === undefined ) {
+
+						// since we do not bother to create new bindings
+						// for objects that are cached, the binding may
+						// or may not exist
+
+						binding = new PropertyBinding(
+								object, paths[ j ], parsedPaths[ j ] );
+
+					}
+
+					bindingsForPath[ firstActiveIndex ] = binding;
+
+				}
+
+			} else if ( objects[ index ] !== knownObject) {
+
+				console.error( "Different objects with the same UUID " +
+						"detected. Clean the caches or recreate your " +
+						"infrastructure when reloading scenes..." );
+
+			} // else the object is already where we want it to be
+
+		} // for arguments
+
+		this.nCachedObjects_ = nCachedObjects;
+
+	},
+
+	remove: function( var_args ) {
+
+		var objects = this._objects,
+			nCachedObjects = this.nCachedObjects_,
+			indicesByUUID = this._indicesByUUID,
+			bindings = this._bindings,
+			nBindings = bindings.length;
+
+		for ( var i = 0, n = arguments.length; i !== n; ++ i ) {
+
+			var object = arguments[ i ],
+				uuid = object.uuid,
+				index = indicesByUUID[ uuid ];
+
+			if ( index !== undefined && index >= nCachedObjects ) {
+
+				// move existing object into the CACHED region
+
+				var lastCachedIndex = nCachedObjects ++,
+					firstActiveObject = objects[ lastCachedIndex ];
+
+				indicesByUUID[ firstActiveObject.uuid ] = index;
+				objects[ index ] = firstActiveObject;
+
+				indicesByUUID[ uuid ] = lastCachedIndex;
+				objects[ lastCachedIndex ] = object;
+
+				// accounting is done, now do the same for all bindings
+
+				for ( var j = 0, m = nBindings; j !== m; ++ j ) {
+
+					var bindingsForPath = bindings[ j ],
+						firstActive = bindingsForPath[ lastCachedIndex ],
+						binding = bindingsForPath[ index ];
+
+					bindingsForPath[ index ] = firstActive;
+					bindingsForPath[ lastCachedIndex ] = binding;
+
+				}
+
+			}
+
+		} // for arguments
+
+		this.nCachedObjects_ = nCachedObjects;
+
+	},
+
+	// remove & forget
+	uncache: function( var_args ) {
+
+		var objects = this._objects,
+			nObjects = objects.length,
+			nCachedObjects = this.nCachedObjects_,
+			indicesByUUID = this._indicesByUUID,
+			bindings = this._bindings,
+			nBindings = bindings.length;
+
+		for ( var i = 0, n = arguments.length; i !== n; ++ i ) {
+
+			var object = arguments[ i ],
+				uuid = object.uuid,
+				index = indicesByUUID[ uuid ];
+
+			if ( index !== undefined ) {
+
+				delete indicesByUUID[ uuid ];
+
+				if ( index < nCachedObjects ) {
+
+					// object is cached, shrink the CACHED region
+
+					var firstActiveIndex = -- nCachedObjects,
+						lastCachedObject = objects[ firstActiveIndex ],
+						lastIndex = -- nObjects,
+						lastObject = objects[ lastIndex ];
+
+					// last cached object takes this object's place
+					indicesByUUID[ lastCachedObject.uuid ] = index;
+					objects[ index ] = lastCachedObject;
+
+					// last object goes to the activated slot and pop
+					indicesByUUID[ lastObject.uuid ] = firstActiveIndex;
+					objects[ firstActiveIndex ] = lastObject;
+					objects.pop();
+
+					// accounting is done, now do the same for all bindings
+
+					for ( var j = 0, m = nBindings; j !== m; ++ j ) {
+
+						var bindingsForPath = bindings[ j ],
+							lastCached = bindingsForPath[ firstActiveIndex ],
+							last = bindingsForPath[ lastIndex ];
+
+						bindingsForPath[ index ] = lastCached;
+						bindingsForPath[ firstActiveIndex ] = last;
+						bindingsForPath.pop();
+
+					}
+
+				} else {
+
+					// object is active, just swap with the last and pop
+
+					var lastIndex = -- nObjects,
+						lastObject = objects[ lastIndex ];
+
+					indicesByUUID[ lastObject.uuid ] = index;
+					objects[ index ] = lastObject;
+					objects.pop();
+
+					// accounting is done, now do the same for all bindings
+
+					for ( var j = 0, m = nBindings; j !== m; ++ j ) {
+
+						var bindingsForPath = bindings[ j ];
+
+						bindingsForPath[ index ] = bindingsForPath[ lastIndex ];
+						bindingsForPath.pop();
+
+					}
+
+				} // cached or active
+
+			} // if object is known
+
+		} // for arguments
+
+		this.nCachedObjects_ = nCachedObjects;
+
+	},
+
+	// Internal interface used by befriended PropertyBinding.Composite:
+
+	subscribe_: function( path, parsedPath ) {
+		// returns an array of bindings for the given path that is changed
+		// according to the contained objects in the group
+
+		var indicesByPath = this._bindingsIndicesByPath,
+			index = indicesByPath[ path ],
+			bindings = this._bindings;
+
+		if ( index !== undefined ) return bindings[ index ];
+
+		var paths = this._paths,
+			parsedPaths = this._parsedPaths,
+			objects = this._objects,
+			nObjects = objects.length,
+			nCachedObjects = this.nCachedObjects_,
+			bindingsForPath = new Array( nObjects );
+
+		index = bindings.length;
+
+		indicesByPath[ path ] = index;
+
+		paths.push( path );
+		parsedPaths.push( parsedPath );
+		bindings.push( bindingsForPath );
+
+		for ( var i = nCachedObjects,
+				n = objects.length; i !== n; ++ i ) {
+
+			var object = objects[ i ];
+
+			bindingsForPath[ i ] =
+					new PropertyBinding( object, path, parsedPath );
+
+		}
+
+		return bindingsForPath;
+
+	},
+
+	unsubscribe_: function( path ) {
+		// tells the group to forget about a property path and no longer
+		// update the array previously obtained with 'subscribe_'
+
+		var indicesByPath = this._bindingsIndicesByPath,
+			index = indicesByPath[ path ];
+
+		if ( index !== undefined ) {
+
+			var paths = this._paths,
+				parsedPaths = this._parsedPaths,
+				bindings = this._bindings,
+				lastBindingsIndex = bindings.length - 1,
+				lastBindings = bindings[ lastBindingsIndex ],
+				lastBindingsPath = path[ lastBindingsIndex ];
+
+			indicesByPath[ lastBindingsPath ] = index;
+
+			bindings[ index ] = lastBindings;
+			bindings.pop();
+
+			parsedPaths[ index ] = parsedPaths[ lastBindingsIndex ];
+			parsedPaths.pop();
+
+			paths[ index ] = paths[ lastBindingsIndex ];
+			paths.pop();
+
+		}
+
+	}
 
 };
 
@@ -37823,6 +38420,197 @@ function Uniform( value ) {
  * @author benaadams / https://twitter.com/ben_a_adams
  */
 
+function InstancedBufferGeometry() {
+
+	BufferGeometry.call( this );
+
+	this.type = 'InstancedBufferGeometry';
+	this.maxInstancedCount = undefined;
+
+}
+
+InstancedBufferGeometry.prototype = Object.create( BufferGeometry.prototype );
+InstancedBufferGeometry.prototype.constructor = InstancedBufferGeometry;
+
+InstancedBufferGeometry.prototype.isInstancedBufferGeometry = true;
+
+InstancedBufferGeometry.prototype.addGroup = function ( start, count, materialIndex ) {
+
+	this.groups.push( {
+
+		start: start,
+		count: count,
+		materialIndex: materialIndex
+
+	} );
+
+};
+
+InstancedBufferGeometry.prototype.copy = function ( source ) {
+
+	var index = source.index;
+
+	if ( index !== null ) {
+
+		this.setIndex( index.clone() );
+
+	}
+
+	var attributes = source.attributes;
+
+	for ( var name in attributes ) {
+
+		var attribute = attributes[ name ];
+		this.addAttribute( name, attribute.clone() );
+
+	}
+
+	var groups = source.groups;
+
+	for ( var i = 0, l = groups.length; i < l; i ++ ) {
+
+		var group = groups[ i ];
+		this.addGroup( group.start, group.count, group.materialIndex );
+
+	}
+
+	return this;
+
+};
+
+/**
+ * @author benaadams / https://twitter.com/ben_a_adams
+ */
+
+function InterleavedBufferAttribute( interleavedBuffer, itemSize, offset, normalized ) {
+
+	this.uuid = _Math.generateUUID();
+
+	this.data = interleavedBuffer;
+	this.itemSize = itemSize;
+	this.offset = offset;
+
+	this.normalized = normalized === true;
+
+}
+
+
+InterleavedBufferAttribute.prototype = {
+
+	constructor: InterleavedBufferAttribute,
+
+	isInterleavedBufferAttribute: true,
+
+	get count() {
+
+		return this.data.count;
+
+	},
+
+	get array() {
+
+		return this.data.array;
+
+	},
+
+	setX: function ( index, x ) {
+
+		this.data.array[ index * this.data.stride + this.offset ] = x;
+
+		return this;
+
+	},
+
+	setY: function ( index, y ) {
+
+		this.data.array[ index * this.data.stride + this.offset + 1 ] = y;
+
+		return this;
+
+	},
+
+	setZ: function ( index, z ) {
+
+		this.data.array[ index * this.data.stride + this.offset + 2 ] = z;
+
+		return this;
+
+	},
+
+	setW: function ( index, w ) {
+
+		this.data.array[ index * this.data.stride + this.offset + 3 ] = w;
+
+		return this;
+
+	},
+
+	getX: function ( index ) {
+
+		return this.data.array[ index * this.data.stride + this.offset ];
+
+	},
+
+	getY: function ( index ) {
+
+		return this.data.array[ index * this.data.stride + this.offset + 1 ];
+
+	},
+
+	getZ: function ( index ) {
+
+		return this.data.array[ index * this.data.stride + this.offset + 2 ];
+
+	},
+
+	getW: function ( index ) {
+
+		return this.data.array[ index * this.data.stride + this.offset + 3 ];
+
+	},
+
+	setXY: function ( index, x, y ) {
+
+		index = index * this.data.stride + this.offset;
+
+		this.data.array[ index + 0 ] = x;
+		this.data.array[ index + 1 ] = y;
+
+		return this;
+
+	},
+
+	setXYZ: function ( index, x, y, z ) {
+
+		index = index * this.data.stride + this.offset;
+
+		this.data.array[ index + 0 ] = x;
+		this.data.array[ index + 1 ] = y;
+		this.data.array[ index + 2 ] = z;
+
+		return this;
+
+	},
+
+	setXYZW: function ( index, x, y, z, w ) {
+
+		index = index * this.data.stride + this.offset;
+
+		this.data.array[ index + 0 ] = x;
+		this.data.array[ index + 1 ] = y;
+		this.data.array[ index + 2 ] = z;
+		this.data.array[ index + 3 ] = w;
+
+		return this;
+
+	}
+
+};
+
+/**
+ * @author benaadams / https://twitter.com/ben_a_adams
+ */
+
 function InterleavedBuffer( array, stride ) {
 
 	this.uuid = _Math.generateUUID();
@@ -37915,6 +38703,93 @@ InterleavedBuffer.prototype = {
 
 };
 
+/**
+ * @author benaadams / https://twitter.com/ben_a_adams
+ */
+
+function InstancedInterleavedBuffer( array, stride, meshPerAttribute ) {
+
+	InterleavedBuffer.call( this, array, stride );
+
+	this.meshPerAttribute = meshPerAttribute || 1;
+
+}
+
+InstancedInterleavedBuffer.prototype = Object.create( InterleavedBuffer.prototype );
+InstancedInterleavedBuffer.prototype.constructor = InstancedInterleavedBuffer;
+
+InstancedInterleavedBuffer.prototype.isInstancedInterleavedBuffer = true;
+
+InstancedInterleavedBuffer.prototype.copy = function ( source ) {
+
+	InterleavedBuffer.prototype.copy.call( this, source );
+
+	this.meshPerAttribute = source.meshPerAttribute;
+
+	return this;
+
+};
+
+/**
+ * @author benaadams / https://twitter.com/ben_a_adams
+ */
+
+function InstancedBufferAttribute( array, itemSize, meshPerAttribute ) {
+
+	BufferAttribute.call( this, array, itemSize );
+
+	this.meshPerAttribute = meshPerAttribute || 1;
+
+}
+
+InstancedBufferAttribute.prototype = Object.create( BufferAttribute.prototype );
+InstancedBufferAttribute.prototype.constructor = InstancedBufferAttribute;
+
+InstancedBufferAttribute.prototype.isInstancedBufferAttribute = true;
+
+InstancedBufferAttribute.prototype.copy = function ( source ) {
+
+	BufferAttribute.prototype.copy.call( this, source );
+
+	this.meshPerAttribute = source.meshPerAttribute;
+
+	return this;
+
+};
+
+/**
+ * @author mrdoob / http://mrdoob.com/
+ * @author bhouston / http://clara.io/
+ * @author stephomi / http://stephaneginier.com/
+ */
+
+function Raycaster( origin, direction, near, far ) {
+
+	this.ray = new Ray( origin, direction );
+	// direction is assumed to be normalized (for accurate distance calculations)
+
+	this.near = near || 0;
+	this.far = far || Infinity;
+
+	this.params = {
+		Mesh: {},
+		Line: {},
+		LOD: {},
+		Points: { threshold: 1 },
+		Sprite: {}
+	};
+
+	Object.defineProperties( this.params, {
+		PointCloud: {
+			get: function () {
+				console.warn( 'THREE.Raycaster: params.PointCloud has been renamed to params.Points.' );
+				return this.Points;
+			}
+		}
+	} );
+
+}
+
 function ascSort( a, b ) {
 
 	return a.distance - b.distance;
@@ -37940,6 +38815,743 @@ function intersectObject( object, raycaster, intersects, recursive ) {
 	}
 
 }
+
+//
+
+Raycaster.prototype = {
+
+	constructor: Raycaster,
+
+	linePrecision: 1,
+
+	set: function ( origin, direction ) {
+
+		// direction is assumed to be normalized (for accurate distance calculations)
+
+		this.ray.set( origin, direction );
+
+	},
+
+	setFromCamera: function ( coords, camera ) {
+
+		if ( (camera && camera.isPerspectiveCamera) ) {
+
+			this.ray.origin.setFromMatrixPosition( camera.matrixWorld );
+			this.ray.direction.set( coords.x, coords.y, 0.5 ).unproject( camera ).sub( this.ray.origin ).normalize();
+
+		} else if ( (camera && camera.isOrthographicCamera) ) {
+
+			this.ray.origin.set( coords.x, coords.y, ( camera.near + camera.far ) / ( camera.near - camera.far ) ).unproject( camera ); // set origin in plane of camera
+			this.ray.direction.set( 0, 0, - 1 ).transformDirection( camera.matrixWorld );
+
+		} else {
+
+			console.error( 'THREE.Raycaster: Unsupported camera type.' );
+
+		}
+
+	},
+
+	intersectObject: function ( object, recursive ) {
+
+		var intersects = [];
+
+		intersectObject( object, this, intersects, recursive );
+
+		intersects.sort( ascSort );
+
+		return intersects;
+
+	},
+
+	intersectObjects: function ( objects, recursive ) {
+
+		var intersects = [];
+
+		if ( Array.isArray( objects ) === false ) {
+
+			console.warn( 'THREE.Raycaster.intersectObjects: objects is not an Array.' );
+			return intersects;
+
+		}
+
+		for ( var i = 0, l = objects.length; i < l; i ++ ) {
+
+			intersectObject( objects[ i ], this, intersects, recursive );
+
+		}
+
+		intersects.sort( ascSort );
+
+		return intersects;
+
+	}
+
+};
+
+/**
+ * @author alteredq / http://alteredqualia.com/
+ */
+
+function Clock( autoStart ) {
+
+	this.autoStart = ( autoStart !== undefined ) ? autoStart : true;
+
+	this.startTime = 0;
+	this.oldTime = 0;
+	this.elapsedTime = 0;
+
+	this.running = false;
+
+}
+
+Clock.prototype = {
+
+	constructor: Clock,
+
+	start: function () {
+
+		this.startTime = ( performance || Date ).now();
+
+		this.oldTime = this.startTime;
+		this.elapsedTime = 0;
+		this.running = true;
+
+	},
+
+	stop: function () {
+
+		this.getElapsedTime();
+		this.running = false;
+
+	},
+
+	getElapsedTime: function () {
+
+		this.getDelta();
+		return this.elapsedTime;
+
+	},
+
+	getDelta: function () {
+
+		var diff = 0;
+
+		if ( this.autoStart && ! this.running ) {
+
+			this.start();
+
+		}
+
+		if ( this.running ) {
+
+			var newTime = ( performance || Date ).now();
+
+			diff = ( newTime - this.oldTime ) / 1000;
+			this.oldTime = newTime;
+
+			this.elapsedTime += diff;
+
+		}
+
+		return diff;
+
+	}
+
+};
+
+/**
+ * Spline from Tween.js, slightly optimized (and trashed)
+ * http://sole.github.com/tween.js/examples/05_spline.html
+ *
+ * @author mrdoob / http://mrdoob.com/
+ * @author alteredq / http://alteredqualia.com/
+ */
+
+function Spline( points ) {
+
+	this.points = points;
+
+	var c = [], v3 = { x: 0, y: 0, z: 0 },
+	point, intPoint, weight, w2, w3,
+	pa, pb, pc, pd;
+
+	this.initFromArray = function ( a ) {
+
+		this.points = [];
+
+		for ( var i = 0; i < a.length; i ++ ) {
+
+			this.points[ i ] = { x: a[ i ][ 0 ], y: a[ i ][ 1 ], z: a[ i ][ 2 ] };
+
+		}
+
+	};
+
+	this.getPoint = function ( k ) {
+
+		point = ( this.points.length - 1 ) * k;
+		intPoint = Math.floor( point );
+		weight = point - intPoint;
+
+		c[ 0 ] = intPoint === 0 ? intPoint : intPoint - 1;
+		c[ 1 ] = intPoint;
+		c[ 2 ] = intPoint  > this.points.length - 2 ? this.points.length - 1 : intPoint + 1;
+		c[ 3 ] = intPoint  > this.points.length - 3 ? this.points.length - 1 : intPoint + 2;
+
+		pa = this.points[ c[ 0 ] ];
+		pb = this.points[ c[ 1 ] ];
+		pc = this.points[ c[ 2 ] ];
+		pd = this.points[ c[ 3 ] ];
+
+		w2 = weight * weight;
+		w3 = weight * w2;
+
+		v3.x = interpolate( pa.x, pb.x, pc.x, pd.x, weight, w2, w3 );
+		v3.y = interpolate( pa.y, pb.y, pc.y, pd.y, weight, w2, w3 );
+		v3.z = interpolate( pa.z, pb.z, pc.z, pd.z, weight, w2, w3 );
+
+		return v3;
+
+	};
+
+	this.getControlPointsArray = function () {
+
+		var i, p, l = this.points.length,
+			coords = [];
+
+		for ( i = 0; i < l; i ++ ) {
+
+			p = this.points[ i ];
+			coords[ i ] = [ p.x, p.y, p.z ];
+
+		}
+
+		return coords;
+
+	};
+
+	// approximate length by summing linear segments
+
+	this.getLength = function ( nSubDivisions ) {
+
+		var i, index, nSamples, position,
+			point = 0, intPoint = 0, oldIntPoint = 0,
+			oldPosition = new Vector3(),
+			tmpVec = new Vector3(),
+			chunkLengths = [],
+			totalLength = 0;
+
+		// first point has 0 length
+
+		chunkLengths[ 0 ] = 0;
+
+		if ( ! nSubDivisions ) nSubDivisions = 100;
+
+		nSamples = this.points.length * nSubDivisions;
+
+		oldPosition.copy( this.points[ 0 ] );
+
+		for ( i = 1; i < nSamples; i ++ ) {
+
+			index = i / nSamples;
+
+			position = this.getPoint( index );
+			tmpVec.copy( position );
+
+			totalLength += tmpVec.distanceTo( oldPosition );
+
+			oldPosition.copy( position );
+
+			point = ( this.points.length - 1 ) * index;
+			intPoint = Math.floor( point );
+
+			if ( intPoint !== oldIntPoint ) {
+
+				chunkLengths[ intPoint ] = totalLength;
+				oldIntPoint = intPoint;
+
+			}
+
+		}
+
+		// last point ends with total length
+
+		chunkLengths[ chunkLengths.length ] = totalLength;
+
+		return { chunks: chunkLengths, total: totalLength };
+
+	};
+
+	this.reparametrizeByArcLength = function ( samplingCoef ) {
+
+		var i, j,
+			index, indexCurrent, indexNext,
+			realDistance,
+			sampling, position,
+			newpoints = [],
+			tmpVec = new Vector3(),
+			sl = this.getLength();
+
+		newpoints.push( tmpVec.copy( this.points[ 0 ] ).clone() );
+
+		for ( i = 1; i < this.points.length; i ++ ) {
+
+			//tmpVec.copy( this.points[ i - 1 ] );
+			//linearDistance = tmpVec.distanceTo( this.points[ i ] );
+
+			realDistance = sl.chunks[ i ] - sl.chunks[ i - 1 ];
+
+			sampling = Math.ceil( samplingCoef * realDistance / sl.total );
+
+			indexCurrent = ( i - 1 ) / ( this.points.length - 1 );
+			indexNext = i / ( this.points.length - 1 );
+
+			for ( j = 1; j < sampling - 1; j ++ ) {
+
+				index = indexCurrent + j * ( 1 / sampling ) * ( indexNext - indexCurrent );
+
+				position = this.getPoint( index );
+				newpoints.push( tmpVec.copy( position ).clone() );
+
+			}
+
+			newpoints.push( tmpVec.copy( this.points[ i ] ).clone() );
+
+		}
+
+		this.points = newpoints;
+
+	};
+
+	// Catmull-Rom
+
+	function interpolate( p0, p1, p2, p3, t, t2, t3 ) {
+
+		var v0 = ( p2 - p0 ) * 0.5,
+			v1 = ( p3 - p1 ) * 0.5;
+
+		return ( 2 * ( p1 - p2 ) + v0 + v1 ) * t3 + ( - 3 * ( p1 - p2 ) - 2 * v0 - v1 ) * t2 + v0 * t + p1;
+
+	}
+
+}
+
+/**
+ * @author bhouston / http://clara.io
+ * @author WestLangley / http://github.com/WestLangley
+ *
+ * Ref: https://en.wikipedia.org/wiki/Spherical_coordinate_system
+ *
+ * The poles (phi) are at the positive and negative y axis.
+ * The equator starts at positive z.
+ */
+
+function Spherical( radius, phi, theta ) {
+
+	this.radius = ( radius !== undefined ) ? radius : 1.0;
+	this.phi = ( phi !== undefined ) ? phi : 0; // up / down towards top and bottom pole
+	this.theta = ( theta !== undefined ) ? theta : 0; // around the equator of the sphere
+
+	return this;
+
+}
+
+Spherical.prototype = {
+
+	constructor: Spherical,
+
+	set: function ( radius, phi, theta ) {
+
+		this.radius = radius;
+		this.phi = phi;
+		this.theta = theta;
+
+		return this;
+
+	},
+
+	clone: function () {
+
+		return new this.constructor().copy( this );
+
+	},
+
+	copy: function ( other ) {
+
+		this.radius = other.radius;
+		this.phi = other.phi;
+		this.theta = other.theta;
+
+		return this;
+
+	},
+
+	// restrict phi to be betwee EPS and PI-EPS
+	makeSafe: function() {
+
+		var EPS = 0.000001;
+		this.phi = Math.max( EPS, Math.min( Math.PI - EPS, this.phi ) );
+
+		return this;
+
+	},
+
+	setFromVector3: function( vec3 ) {
+
+		this.radius = vec3.length();
+
+		if ( this.radius === 0 ) {
+
+			this.theta = 0;
+			this.phi = 0;
+
+		} else {
+
+			this.theta = Math.atan2( vec3.x, vec3.z ); // equator angle around y-up axis
+			this.phi = Math.acos( _Math.clamp( vec3.y / this.radius, - 1, 1 ) ); // polar angle
+
+		}
+
+		return this;
+
+	},
+
+};
+
+/**
+ * @author alteredq / http://alteredqualia.com/
+ */
+
+function MorphBlendMesh( geometry, material ) {
+
+	Mesh.call( this, geometry, material );
+
+	this.animationsMap = {};
+	this.animationsList = [];
+
+	// prepare default animation
+	// (all frames played together in 1 second)
+
+	var numFrames = this.geometry.morphTargets.length;
+
+	var name = "__default";
+
+	var startFrame = 0;
+	var endFrame = numFrames - 1;
+
+	var fps = numFrames / 1;
+
+	this.createAnimation( name, startFrame, endFrame, fps );
+	this.setAnimationWeight( name, 1 );
+
+}
+
+MorphBlendMesh.prototype = Object.create( Mesh.prototype );
+MorphBlendMesh.prototype.constructor = MorphBlendMesh;
+
+MorphBlendMesh.prototype.createAnimation = function ( name, start, end, fps ) {
+
+	var animation = {
+
+		start: start,
+		end: end,
+
+		length: end - start + 1,
+
+		fps: fps,
+		duration: ( end - start ) / fps,
+
+		lastFrame: 0,
+		currentFrame: 0,
+
+		active: false,
+
+		time: 0,
+		direction: 1,
+		weight: 1,
+
+		directionBackwards: false,
+		mirroredLoop: false
+
+	};
+
+	this.animationsMap[ name ] = animation;
+	this.animationsList.push( animation );
+
+};
+
+MorphBlendMesh.prototype.autoCreateAnimations = function ( fps ) {
+
+	var pattern = /([a-z]+)_?(\d+)/i;
+
+	var firstAnimation, frameRanges = {};
+
+	var geometry = this.geometry;
+
+	for ( var i = 0, il = geometry.morphTargets.length; i < il; i ++ ) {
+
+		var morph = geometry.morphTargets[ i ];
+		var chunks = morph.name.match( pattern );
+
+		if ( chunks && chunks.length > 1 ) {
+
+			var name = chunks[ 1 ];
+
+			if ( ! frameRanges[ name ] ) frameRanges[ name ] = { start: Infinity, end: - Infinity };
+
+			var range = frameRanges[ name ];
+
+			if ( i < range.start ) range.start = i;
+			if ( i > range.end ) range.end = i;
+
+			if ( ! firstAnimation ) firstAnimation = name;
+
+		}
+
+	}
+
+	for ( var name in frameRanges ) {
+
+		var range = frameRanges[ name ];
+		this.createAnimation( name, range.start, range.end, fps );
+
+	}
+
+	this.firstAnimation = firstAnimation;
+
+};
+
+MorphBlendMesh.prototype.setAnimationDirectionForward = function ( name ) {
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		animation.direction = 1;
+		animation.directionBackwards = false;
+
+	}
+
+};
+
+MorphBlendMesh.prototype.setAnimationDirectionBackward = function ( name ) {
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		animation.direction = - 1;
+		animation.directionBackwards = true;
+
+	}
+
+};
+
+MorphBlendMesh.prototype.setAnimationFPS = function ( name, fps ) {
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		animation.fps = fps;
+		animation.duration = ( animation.end - animation.start ) / animation.fps;
+
+	}
+
+};
+
+MorphBlendMesh.prototype.setAnimationDuration = function ( name, duration ) {
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		animation.duration = duration;
+		animation.fps = ( animation.end - animation.start ) / animation.duration;
+
+	}
+
+};
+
+MorphBlendMesh.prototype.setAnimationWeight = function ( name, weight ) {
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		animation.weight = weight;
+
+	}
+
+};
+
+MorphBlendMesh.prototype.setAnimationTime = function ( name, time ) {
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		animation.time = time;
+
+	}
+
+};
+
+MorphBlendMesh.prototype.getAnimationTime = function ( name ) {
+
+	var time = 0;
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		time = animation.time;
+
+	}
+
+	return time;
+
+};
+
+MorphBlendMesh.prototype.getAnimationDuration = function ( name ) {
+
+	var duration = - 1;
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		duration = animation.duration;
+
+	}
+
+	return duration;
+
+};
+
+MorphBlendMesh.prototype.playAnimation = function ( name ) {
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		animation.time = 0;
+		animation.active = true;
+
+	} else {
+
+		console.warn( "THREE.MorphBlendMesh: animation[" + name + "] undefined in .playAnimation()" );
+
+	}
+
+};
+
+MorphBlendMesh.prototype.stopAnimation = function ( name ) {
+
+	var animation = this.animationsMap[ name ];
+
+	if ( animation ) {
+
+		animation.active = false;
+
+	}
+
+};
+
+MorphBlendMesh.prototype.update = function ( delta ) {
+
+	for ( var i = 0, il = this.animationsList.length; i < il; i ++ ) {
+
+		var animation = this.animationsList[ i ];
+
+		if ( ! animation.active ) continue;
+
+		var frameTime = animation.duration / animation.length;
+
+		animation.time += animation.direction * delta;
+
+		if ( animation.mirroredLoop ) {
+
+			if ( animation.time > animation.duration || animation.time < 0 ) {
+
+				animation.direction *= - 1;
+
+				if ( animation.time > animation.duration ) {
+
+					animation.time = animation.duration;
+					animation.directionBackwards = true;
+
+				}
+
+				if ( animation.time < 0 ) {
+
+					animation.time = 0;
+					animation.directionBackwards = false;
+
+				}
+
+			}
+
+		} else {
+
+			animation.time = animation.time % animation.duration;
+
+			if ( animation.time < 0 ) animation.time += animation.duration;
+
+		}
+
+		var keyframe = animation.start + _Math.clamp( Math.floor( animation.time / frameTime ), 0, animation.length - 1 );
+		var weight = animation.weight;
+
+		if ( keyframe !== animation.currentFrame ) {
+
+			this.morphTargetInfluences[ animation.lastFrame ] = 0;
+			this.morphTargetInfluences[ animation.currentFrame ] = 1 * weight;
+
+			this.morphTargetInfluences[ keyframe ] = 0;
+
+			animation.lastFrame = animation.currentFrame;
+			animation.currentFrame = keyframe;
+
+		}
+
+		var mix = ( animation.time % frameTime ) / frameTime;
+
+		if ( animation.directionBackwards ) mix = 1 - mix;
+
+		if ( animation.currentFrame !== animation.lastFrame ) {
+
+			this.morphTargetInfluences[ animation.currentFrame ] = mix * weight;
+			this.morphTargetInfluences[ animation.lastFrame ] = ( 1 - mix ) * weight;
+
+		} else {
+
+			this.morphTargetInfluences[ animation.currentFrame ] = weight;
+
+		}
+
+	}
+
+};
+
+/**
+ * @author alteredq / http://alteredqualia.com/
+ */
+
+function ImmediateRenderObject( material ) {
+
+	Object3D.call( this );
+
+	this.material = material;
+	this.render = function ( renderCallback ) {};
+
+}
+
+ImmediateRenderObject.prototype = Object.create( Object3D.prototype );
+ImmediateRenderObject.prototype.constructor = ImmediateRenderObject;
+
+ImmediateRenderObject.prototype.isImmediateRenderObject = true;
 
 /**
  * @author mrdoob / http://mrdoob.com/
@@ -38170,6 +39782,181 @@ SpotLightHelper.prototype.update = function () {
 }();
 
 /**
+ * @author Sean Griffin / http://twitter.com/sgrif
+ * @author Michael Guerrero / http://realitymeltdown.com
+ * @author mrdoob / http://mrdoob.com/
+ * @author ikerr / http://verold.com
+ */
+
+function SkeletonHelper( object ) {
+
+	this.bones = this.getBoneList( object );
+
+	var geometry = new Geometry();
+
+	for ( var i = 0; i < this.bones.length; i ++ ) {
+
+		var bone = this.bones[ i ];
+
+		if ( (bone.parent && bone.parent.isBone) ) {
+
+			geometry.vertices.push( new Vector3() );
+			geometry.vertices.push( new Vector3() );
+			geometry.colors.push( new Color( 0, 0, 1 ) );
+			geometry.colors.push( new Color( 0, 1, 0 ) );
+
+		}
+
+	}
+
+	geometry.dynamic = true;
+
+	var material = new LineBasicMaterial( { vertexColors: VertexColors, depthTest: false, depthWrite: false, transparent: true } );
+
+	LineSegments.call( this, geometry, material );
+
+	this.root = object;
+
+	this.matrix = object.matrixWorld;
+	this.matrixAutoUpdate = false;
+
+	this.update();
+
+}
+
+
+SkeletonHelper.prototype = Object.create( LineSegments.prototype );
+SkeletonHelper.prototype.constructor = SkeletonHelper;
+
+SkeletonHelper.prototype.getBoneList = function( object ) {
+
+	var boneList = [];
+
+	if ( (object && object.isBone) ) {
+
+		boneList.push( object );
+
+	}
+
+	for ( var i = 0; i < object.children.length; i ++ ) {
+
+		boneList.push.apply( boneList, this.getBoneList( object.children[ i ] ) );
+
+	}
+
+	return boneList;
+
+};
+
+SkeletonHelper.prototype.update = function () {
+
+	var geometry = this.geometry;
+
+	var matrixWorldInv = new Matrix4().getInverse( this.root.matrixWorld );
+
+	var boneMatrix = new Matrix4();
+
+	var j = 0;
+
+	for ( var i = 0; i < this.bones.length; i ++ ) {
+
+		var bone = this.bones[ i ];
+
+		if ( (bone.parent && bone.parent.isBone) ) {
+
+			boneMatrix.multiplyMatrices( matrixWorldInv, bone.matrixWorld );
+			geometry.vertices[ j ].setFromMatrixPosition( boneMatrix );
+
+			boneMatrix.multiplyMatrices( matrixWorldInv, bone.parent.matrixWorld );
+			geometry.vertices[ j + 1 ].setFromMatrixPosition( boneMatrix );
+
+			j += 2;
+
+		}
+
+	}
+
+	geometry.verticesNeedUpdate = true;
+
+	geometry.computeBoundingSphere();
+
+};
+
+/**
+ * @author alteredq / http://alteredqualia.com/
+ * @author mrdoob / http://mrdoob.com/
+ */
+
+function PointLightHelper( light, sphereSize ) {
+
+	this.light = light;
+	this.light.updateMatrixWorld();
+
+	var geometry = new SphereBufferGeometry( sphereSize, 4, 2 );
+	var material = new MeshBasicMaterial( { wireframe: true, fog: false } );
+	material.color.copy( this.light.color ).multiplyScalar( this.light.intensity );
+
+	Mesh.call( this, geometry, material );
+
+	this.matrix = this.light.matrixWorld;
+	this.matrixAutoUpdate = false;
+
+	/*
+	var distanceGeometry = new THREE.IcosahedronGeometry( 1, 2 );
+	var distanceMaterial = new THREE.MeshBasicMaterial( { color: hexColor, fog: false, wireframe: true, opacity: 0.1, transparent: true } );
+
+	this.lightSphere = new THREE.Mesh( bulbGeometry, bulbMaterial );
+	this.lightDistance = new THREE.Mesh( distanceGeometry, distanceMaterial );
+
+	var d = light.distance;
+
+	if ( d === 0.0 ) {
+
+		this.lightDistance.visible = false;
+
+	} else {
+
+		this.lightDistance.scale.set( d, d, d );
+
+	}
+
+	this.add( this.lightDistance );
+	*/
+
+}
+
+PointLightHelper.prototype = Object.create( Mesh.prototype );
+PointLightHelper.prototype.constructor = PointLightHelper;
+
+PointLightHelper.prototype.dispose = function () {
+
+	this.geometry.dispose();
+	this.material.dispose();
+
+};
+
+PointLightHelper.prototype.update = function () {
+
+	this.material.color.copy( this.light.color ).multiplyScalar( this.light.intensity );
+
+	/*
+	var d = this.light.distance;
+
+	if ( d === 0.0 ) {
+
+		this.lightDistance.visible = false;
+
+	} else {
+
+		this.lightDistance.visible = true;
+		this.lightDistance.scale.set( d, d, d );
+
+	}
+	*/
+
+};
+
+/**
  * @author alteredq / http://alteredqualia.com/
  * @author mrdoob / http://mrdoob.com/
  */
@@ -38229,6 +40016,53 @@ HemisphereLightHelper.prototype.update = function () {
 	};
 
 }();
+
+/**
+ * @author mrdoob / http://mrdoob.com/
+ */
+
+function GridHelper( size, divisions, color1, color2 ) {
+
+	divisions = divisions || 1;
+	color1 = new Color( color1 !== undefined ? color1 : 0x444444 );
+	color2 = new Color( color2 !== undefined ? color2 : 0x888888 );
+
+	var center = divisions / 2;
+	var step = ( size * 2 ) / divisions;
+	var vertices = [], colors = [];
+
+	for ( var i = 0, j = 0, k = - size; i <= divisions; i ++, k += step ) {
+
+		vertices.push( - size, 0, k, size, 0, k );
+		vertices.push( k, 0, - size, k, 0, size );
+
+		var color = i === center ? color1 : color2;
+
+		color.toArray( colors, j ); j += 3;
+		color.toArray( colors, j ); j += 3;
+		color.toArray( colors, j ); j += 3;
+		color.toArray( colors, j ); j += 3;
+
+	}
+
+	var geometry = new BufferGeometry();
+	geometry.addAttribute( 'position', new Float32Attribute( vertices, 3 ) );
+	geometry.addAttribute( 'color', new Float32Attribute( colors, 3 ) );
+
+	var material = new LineBasicMaterial( { vertexColors: VertexColors } );
+
+	LineSegments.call( this, geometry, material );
+
+}
+
+GridHelper.prototype = Object.create( LineSegments.prototype );
+GridHelper.prototype.constructor = GridHelper;
+
+GridHelper.prototype.setColors = function () {
+
+	console.error( 'THREE.GridHelper: setColors() has been deprecated, pass them in the constructor instead.' );
+
+};
 
 /**
  * @author mrdoob / http://mrdoob.com/
@@ -38612,6 +40446,37 @@ CameraHelper.prototype.update = function () {
 }();
 
 /**
+ * @author WestLangley / http://github.com/WestLangley
+ */
+
+// a helper to show the world-axis-aligned bounding box for an object
+
+function BoundingBoxHelper( object, hex ) {
+
+	var color = ( hex !== undefined ) ? hex : 0x888888;
+
+	this.object = object;
+
+	this.box = new Box3();
+
+	Mesh.call( this, new BoxGeometry( 1, 1, 1 ), new MeshBasicMaterial( { color: color, wireframe: true } ) );
+
+}
+
+BoundingBoxHelper.prototype = Object.create( Mesh.prototype );
+BoundingBoxHelper.prototype.constructor = BoundingBoxHelper;
+
+BoundingBoxHelper.prototype.update = function () {
+
+	this.box.setFromObject( this.object );
+
+	this.box.getSize( this.scale );
+
+	this.box.getCenter( this.position );
+
+};
+
+/**
  * @author mrdoob / http://mrdoob.com/
  */
 
@@ -38800,6 +40665,40 @@ ArrowHelper.prototype.setColor = function ( color ) {
 };
 
 /**
+ * @author sroucheray / http://sroucheray.org/
+ * @author mrdoob / http://mrdoob.com/
+ */
+
+function AxisHelper( size ) {
+
+	size = size || 1;
+
+	var vertices = new Float32Array( [
+		0, 0, 0,  size, 0, 0,
+		0, 0, 0,  0, size, 0,
+		0, 0, 0,  0, 0, size
+	] );
+
+	var colors = new Float32Array( [
+		1, 0, 0,  1, 0.6, 0,
+		0, 1, 0,  0.6, 1, 0,
+		0, 0, 1,  0, 0.6, 1
+	] );
+
+	var geometry = new BufferGeometry();
+	geometry.addAttribute( 'position', new BufferAttribute( vertices, 3 ) );
+	geometry.addAttribute( 'color', new BufferAttribute( colors, 3 ) );
+
+	var material = new LineBasicMaterial( { vertexColors: VertexColors } );
+
+	LineSegments.call( this, geometry, material );
+
+}
+
+AxisHelper.prototype = Object.create( LineSegments.prototype );
+AxisHelper.prototype.constructor = AxisHelper;
+
+/**
  * @author zz85 https://github.com/zz85
  *
  * Centripetal CatmullRom Curve - which is useful for avoiding
@@ -38981,6 +40880,23 @@ var CatmullRomCurve3 = ( function() {
 } )();
 
 /**************************************************************
+ *	Closed Spline 3D curve
+ **************************************************************/
+
+
+function ClosedSplineCurve3( points ) {
+
+	console.warn( 'THREE.ClosedSplineCurve3 has been deprecated. Please use THREE.CatmullRomCurve3.' );
+
+	CatmullRomCurve3.call( this, points );
+	this.type = 'catmullrom';
+	this.closed = true;
+
+}
+
+ClosedSplineCurve3.prototype = Object.create( CatmullRomCurve3.prototype );
+
+/**************************************************************
  *	Spline 3D curve
  **************************************************************/
 
@@ -39108,6 +41024,115 @@ var LineCurve3 = Curve.create(
 	}
 
 );
+
+/**************************************************************
+ *	Arc curve
+ **************************************************************/
+
+function ArcCurve( aX, aY, aRadius, aStartAngle, aEndAngle, aClockwise ) {
+
+	EllipseCurve.call( this, aX, aY, aRadius, aRadius, aStartAngle, aEndAngle, aClockwise );
+
+}
+
+ArcCurve.prototype = Object.create( EllipseCurve.prototype );
+ArcCurve.prototype.constructor = ArcCurve;
+
+/**
+ * @author alteredq / http://alteredqualia.com/
+ */
+
+var SceneUtils = {
+
+	createMultiMaterialObject: function ( geometry, materials ) {
+
+		var group = new Group();
+
+		for ( var i = 0, l = materials.length; i < l; i ++ ) {
+
+			group.add( new Mesh( geometry, materials[ i ] ) );
+
+		}
+
+		return group;
+
+	},
+
+	detach: function ( child, parent, scene ) {
+
+		child.applyMatrix( parent.matrixWorld );
+		parent.remove( child );
+		scene.add( child );
+
+	},
+
+	attach: function ( child, scene, parent ) {
+
+		var matrixWorldInverse = new Matrix4();
+		matrixWorldInverse.getInverse( parent.matrixWorld );
+		child.applyMatrix( matrixWorldInverse );
+
+		scene.remove( child );
+		parent.add( child );
+
+	}
+
+};
+
+/**
+ * @author mrdoob / http://mrdoob.com/
+ */
+
+function Face4 ( a, b, c, d, normal, color, materialIndex ) {
+	console.warn( 'THREE.Face4 has been removed. A THREE.Face3 will be created instead.' );
+	return new Face3( a, b, c, normal, color, materialIndex );
+}
+
+var LineStrip = 0;
+
+var LinePieces = 1;
+
+function PointCloud ( geometry, material ) {
+	console.warn( 'THREE.PointCloud has been renamed to THREE.Points.' );
+	return new Points( geometry, material );
+}
+
+function ParticleSystem ( geometry, material ) {
+	console.warn( 'THREE.ParticleSystem has been renamed to THREE.Points.' );
+	return new Points( geometry, material );
+}
+
+function PointCloudMaterial ( parameters ) {
+	console.warn( 'THREE.PointCloudMaterial has been renamed to THREE.PointsMaterial.' );
+	return new PointsMaterial( parameters );
+}
+
+function ParticleBasicMaterial ( parameters ) {
+	console.warn( 'THREE.ParticleBasicMaterial has been renamed to THREE.PointsMaterial.' );
+	return new PointsMaterial( parameters );
+}
+
+function ParticleSystemMaterial ( parameters ) {
+	console.warn( 'THREE.ParticleSystemMaterial has been renamed to THREE.PointsMaterial.' );
+	return new PointsMaterial( parameters );
+}
+
+function Vertex ( x, y, z ) {
+	console.warn( 'THREE.Vertex has been removed. Use THREE.Vector3 instead.' );
+	return new Vector3( x, y, z );
+}
+
+//
+
+function EdgesHelper( object, hex ) {
+	console.warn( 'THREE.EdgesHelper has been removed. Use THREE.EdgesGeometry instead.' );
+	return new LineSegments( new EdgesGeometry( object.geometry ), new LineBasicMaterial( { color: hex !== undefined ? hex : 0xffffff } ) );
+}
+
+function WireframeHelper( object, hex ) {
+	console.warn( 'THREE.WireframeHelper has been removed. Use THREE.WireframeGeometry instead.' );
+	return new LineSegments( new WireframeGeometry( object.geometry ), new LineBasicMaterial( { color: hex !== undefined ? hex : 0xffffff } ) );
+}
 
 //
 
@@ -39766,11 +41791,508 @@ Object.assign( AudioAnalyser.prototype, {
 	}
 } );
 
+//
+
+var GeometryUtils = {
+
+	merge: function ( geometry1, geometry2, materialIndexOffset ) {
+
+		console.warn( 'THREE.GeometryUtils: .merge() has been moved to Geometry. Use geometry.merge( geometry2, matrix, materialIndexOffset ) instead.' );
+
+		var matrix;
+
+		if ( geometry2.isMesh ) {
+
+			geometry2.matrixAutoUpdate && geometry2.updateMatrix();
+
+			matrix = geometry2.matrix;
+			geometry2 = geometry2.geometry;
+
+		}
+
+		geometry1.merge( geometry2, matrix, materialIndexOffset );
+
+	},
+
+	center: function ( geometry ) {
+
+		console.warn( 'THREE.GeometryUtils: .center() has been moved to Geometry. Use geometry.center() instead.' );
+		return geometry.center();
+
+	}
+
+};
+
+var ImageUtils = {
+
+	crossOrigin: undefined,
+
+	loadTexture: function ( url, mapping, onLoad, onError ) {
+
+		console.warn( 'THREE.ImageUtils.loadTexture has been deprecated. Use THREE.TextureLoader() instead.' );
+
+		var loader = new TextureLoader();
+		loader.setCrossOrigin( this.crossOrigin );
+
+		var texture = loader.load( url, onLoad, undefined, onError );
+
+		if ( mapping ) texture.mapping = mapping;
+
+		return texture;
+
+	},
+
+	loadTextureCube: function ( urls, mapping, onLoad, onError ) {
+
+		console.warn( 'THREE.ImageUtils.loadTextureCube has been deprecated. Use THREE.CubeTextureLoader() instead.' );
+
+		var loader = new CubeTextureLoader();
+		loader.setCrossOrigin( this.crossOrigin );
+
+		var texture = loader.load( urls, onLoad, undefined, onError );
+
+		if ( mapping ) texture.mapping = mapping;
+
+		return texture;
+
+	},
+
+	loadCompressedTexture: function () {
+
+		console.error( 'THREE.ImageUtils.loadCompressedTexture has been removed. Use THREE.DDSLoader instead.' );
+
+	},
+
+	loadCompressedTextureCube: function () {
+
+		console.error( 'THREE.ImageUtils.loadCompressedTextureCube has been removed. Use THREE.DDSLoader instead.' );
+
+	}
+
+};
+
+//
+
+function Projector () {
+
+	console.error( 'THREE.Projector has been moved to /examples/js/renderers/Projector.js.' );
+
+	this.projectVector = function ( vector, camera ) {
+
+		console.warn( 'THREE.Projector: .projectVector() is now vector.project().' );
+		vector.project( camera );
+
+	};
+
+	this.unprojectVector = function ( vector, camera ) {
+
+		console.warn( 'THREE.Projector: .unprojectVector() is now vector.unproject().' );
+		vector.unproject( camera );
+
+	};
+
+	this.pickingRay = function ( vector, camera ) {
+
+		console.error( 'THREE.Projector: .pickingRay() is now raycaster.setFromCamera().' );
+
+	};
+
+}
+
+//
+
+function CanvasRenderer () {
+
+	console.error( 'THREE.CanvasRenderer has been moved to /examples/js/renderers/CanvasRenderer.js' );
+
+	this.domElement = document.createElementNS( 'http://www.w3.org/1999/xhtml', 'canvas' );
+	this.clear = function () {};
+	this.render = function () {};
+	this.setClearColor = function () {};
+	this.setSize = function () {};
+
+}
+
 Object.defineProperty( exports, 'AudioContext', {
 	get: function () {
 		return exports.getAudioContext();
 	}
 });
+
+
+var three_modules = Object.freeze({
+	WebGLRenderTargetCube: WebGLRenderTargetCube,
+	WebGLRenderTarget: WebGLRenderTarget,
+	WebGLRenderer: WebGLRenderer,
+	ShaderLib: ShaderLib,
+	UniformsLib: UniformsLib,
+	UniformsUtils: UniformsUtils,
+	ShaderChunk: ShaderChunk,
+	FogExp2: FogExp2,
+	Fog: Fog,
+	Scene: Scene,
+	LensFlare: LensFlare,
+	Sprite: Sprite,
+	LOD: LOD,
+	SkinnedMesh: SkinnedMesh,
+	Skeleton: Skeleton,
+	Bone: Bone,
+	Mesh: Mesh,
+	LineSegments: LineSegments,
+	Line: Line,
+	Points: Points,
+	Group: Group,
+	VideoTexture: VideoTexture,
+	DataTexture: DataTexture,
+	CompressedTexture: CompressedTexture,
+	CubeTexture: CubeTexture,
+	CanvasTexture: CanvasTexture,
+	DepthTexture: DepthTexture,
+	TextureIdCount: TextureIdCount,
+	Texture: Texture,
+	MaterialIdCount: MaterialIdCount,
+	CompressedTextureLoader: CompressedTextureLoader,
+	BinaryTextureLoader: BinaryTextureLoader,
+	DataTextureLoader: DataTextureLoader,
+	CubeTextureLoader: CubeTextureLoader,
+	TextureLoader: TextureLoader,
+	ObjectLoader: ObjectLoader,
+	MaterialLoader: MaterialLoader,
+	BufferGeometryLoader: BufferGeometryLoader,
+	DefaultLoadingManager: DefaultLoadingManager,
+	LoadingManager: LoadingManager,
+	JSONLoader: JSONLoader,
+	ImageLoader: ImageLoader,
+	FontLoader: FontLoader,
+	XHRLoader: XHRLoader,
+	Loader: Loader,
+	Cache: Cache,
+	AudioLoader: AudioLoader,
+	SpotLightShadow: SpotLightShadow,
+	SpotLight: SpotLight,
+	PointLight: PointLight,
+	HemisphereLight: HemisphereLight,
+	DirectionalLightShadow: DirectionalLightShadow,
+	DirectionalLight: DirectionalLight,
+	AmbientLight: AmbientLight,
+	LightShadow: LightShadow,
+	Light: Light,
+	StereoCamera: StereoCamera,
+	PerspectiveCamera: PerspectiveCamera,
+	OrthographicCamera: OrthographicCamera,
+	CubeCamera: CubeCamera,
+	Camera: Camera,
+	AudioListener: AudioListener,
+	PositionalAudio: PositionalAudio,
+	getAudioContext: getAudioContext,
+	AudioAnalyser: AudioAnalyser,
+	Audio: Audio,
+	VectorKeyframeTrack: VectorKeyframeTrack,
+	StringKeyframeTrack: StringKeyframeTrack,
+	QuaternionKeyframeTrack: QuaternionKeyframeTrack,
+	NumberKeyframeTrack: NumberKeyframeTrack,
+	ColorKeyframeTrack: ColorKeyframeTrack,
+	BooleanKeyframeTrack: BooleanKeyframeTrack,
+	PropertyMixer: PropertyMixer,
+	PropertyBinding: PropertyBinding,
+	KeyframeTrack: KeyframeTrack,
+	AnimationUtils: AnimationUtils,
+	AnimationObjectGroup: AnimationObjectGroup,
+	AnimationMixer: AnimationMixer,
+	AnimationClip: AnimationClip,
+	Uniform: Uniform,
+	InstancedBufferGeometry: InstancedBufferGeometry,
+	BufferGeometry: BufferGeometry,
+	GeometryIdCount: GeometryIdCount,
+	Geometry: Geometry,
+	InterleavedBufferAttribute: InterleavedBufferAttribute,
+	InstancedInterleavedBuffer: InstancedInterleavedBuffer,
+	InterleavedBuffer: InterleavedBuffer,
+	InstancedBufferAttribute: InstancedBufferAttribute,
+	DynamicBufferAttribute: DynamicBufferAttribute,
+	Float64Attribute: Float64Attribute,
+	Float32Attribute: Float32Attribute,
+	Uint32Attribute: Uint32Attribute,
+	Int32Attribute: Int32Attribute,
+	Uint16Attribute: Uint16Attribute,
+	Int16Attribute: Int16Attribute,
+	Uint8ClampedAttribute: Uint8ClampedAttribute,
+	Uint8Attribute: Uint8Attribute,
+	Int8Attribute: Int8Attribute,
+	BufferAttribute: BufferAttribute,
+	Face3: Face3,
+	Object3DIdCount: Object3DIdCount,
+	Object3D: Object3D,
+	Raycaster: Raycaster,
+	Layers: Layers,
+	EventDispatcher: EventDispatcher,
+	Clock: Clock,
+	QuaternionLinearInterpolant: QuaternionLinearInterpolant,
+	LinearInterpolant: LinearInterpolant,
+	DiscreteInterpolant: DiscreteInterpolant,
+	CubicInterpolant: CubicInterpolant,
+	Interpolant: Interpolant,
+	Triangle: Triangle,
+	Spline: Spline,
+	Math: _Math,
+	Spherical: Spherical,
+	Plane: Plane,
+	Frustum: Frustum,
+	Sphere: Sphere,
+	Ray: Ray,
+	Matrix4: Matrix4,
+	Matrix3: Matrix3,
+	Box3: Box3,
+	Box2: Box2,
+	Line3: Line3,
+	Euler: Euler,
+	Vector4: Vector4,
+	Vector3: Vector3,
+	Vector2: Vector2,
+	Quaternion: Quaternion,
+	ColorKeywords: ColorKeywords,
+	Color: Color,
+	MorphBlendMesh: MorphBlendMesh,
+	ImmediateRenderObject: ImmediateRenderObject,
+	VertexNormalsHelper: VertexNormalsHelper,
+	SpotLightHelper: SpotLightHelper,
+	SkeletonHelper: SkeletonHelper,
+	PointLightHelper: PointLightHelper,
+	HemisphereLightHelper: HemisphereLightHelper,
+	GridHelper: GridHelper,
+	FaceNormalsHelper: FaceNormalsHelper,
+	DirectionalLightHelper: DirectionalLightHelper,
+	CameraHelper: CameraHelper,
+	BoundingBoxHelper: BoundingBoxHelper,
+	BoxHelper: BoxHelper,
+	ArrowHelper: ArrowHelper,
+	AxisHelper: AxisHelper,
+	ClosedSplineCurve3: ClosedSplineCurve3,
+	CatmullRomCurve3: CatmullRomCurve3,
+	SplineCurve3: SplineCurve3,
+	CubicBezierCurve3: CubicBezierCurve3,
+	QuadraticBezierCurve3: QuadraticBezierCurve3,
+	LineCurve3: LineCurve3,
+	ArcCurve: ArcCurve,
+	EllipseCurve: EllipseCurve,
+	SplineCurve: SplineCurve,
+	CubicBezierCurve: CubicBezierCurve,
+	QuadraticBezierCurve: QuadraticBezierCurve,
+	LineCurve: LineCurve,
+	Shape: Shape,
+	ShapePath: ShapePath,
+	Path: Path,
+	Font: Font,
+	CurvePath: CurvePath,
+	Curve: Curve,
+	ShapeUtils: ShapeUtils,
+	SceneUtils: SceneUtils,
+	CurveUtils: CurveUtils,
+	WireframeGeometry: WireframeGeometry,
+	ParametricGeometry: ParametricGeometry,
+	ParametricBufferGeometry: ParametricBufferGeometry,
+	TetrahedronGeometry: TetrahedronGeometry,
+	TetrahedronBufferGeometry: TetrahedronBufferGeometry,
+	OctahedronGeometry: OctahedronGeometry,
+	OctahedronBufferGeometry: OctahedronBufferGeometry,
+	IcosahedronGeometry: IcosahedronGeometry,
+	IcosahedronBufferGeometry: IcosahedronBufferGeometry,
+	DodecahedronGeometry: DodecahedronGeometry,
+	DodecahedronBufferGeometry: DodecahedronBufferGeometry,
+	PolyhedronGeometry: PolyhedronGeometry,
+	PolyhedronBufferGeometry: PolyhedronBufferGeometry,
+	TubeGeometry: TubeGeometry,
+	TubeBufferGeometry: TubeBufferGeometry,
+	TorusKnotGeometry: TorusKnotGeometry,
+	TorusKnotBufferGeometry: TorusKnotBufferGeometry,
+	TorusGeometry: TorusGeometry,
+	TorusBufferGeometry: TorusBufferGeometry,
+	TextGeometry: TextGeometry,
+	SphereBufferGeometry: SphereBufferGeometry,
+	SphereGeometry: SphereGeometry,
+	RingGeometry: RingGeometry,
+	RingBufferGeometry: RingBufferGeometry,
+	PlaneBufferGeometry: PlaneBufferGeometry,
+	PlaneGeometry: PlaneGeometry,
+	LatheGeometry: LatheGeometry,
+	LatheBufferGeometry: LatheBufferGeometry,
+	ShapeGeometry: ShapeGeometry,
+	ExtrudeGeometry: ExtrudeGeometry,
+	EdgesGeometry: EdgesGeometry,
+	ConeGeometry: ConeGeometry,
+	ConeBufferGeometry: ConeBufferGeometry,
+	CylinderGeometry: CylinderGeometry,
+	CylinderBufferGeometry: CylinderBufferGeometry,
+	CircleBufferGeometry: CircleBufferGeometry,
+	CircleGeometry: CircleGeometry,
+	BoxBufferGeometry: BoxBufferGeometry,
+	BoxGeometry: BoxGeometry,
+	ShadowMaterial: ShadowMaterial,
+	SpriteMaterial: SpriteMaterial,
+	RawShaderMaterial: RawShaderMaterial,
+	ShaderMaterial: ShaderMaterial,
+	PointsMaterial: PointsMaterial,
+	MultiMaterial: MultiMaterial,
+	MeshPhysicalMaterial: MeshPhysicalMaterial,
+	MeshStandardMaterial: MeshStandardMaterial,
+	MeshPhongMaterial: MeshPhongMaterial,
+	MeshNormalMaterial: MeshNormalMaterial,
+	MeshLambertMaterial: MeshLambertMaterial,
+	MeshDepthMaterial: MeshDepthMaterial,
+	MeshBasicMaterial: MeshBasicMaterial,
+	LineDashedMaterial: LineDashedMaterial,
+	LineBasicMaterial: LineBasicMaterial,
+	Material: Material,
+	REVISION: REVISION,
+	MOUSE: MOUSE,
+	CullFaceNone: CullFaceNone,
+	CullFaceBack: CullFaceBack,
+	CullFaceFront: CullFaceFront,
+	CullFaceFrontBack: CullFaceFrontBack,
+	FrontFaceDirectionCW: FrontFaceDirectionCW,
+	FrontFaceDirectionCCW: FrontFaceDirectionCCW,
+	BasicShadowMap: BasicShadowMap,
+	PCFShadowMap: PCFShadowMap,
+	PCFSoftShadowMap: PCFSoftShadowMap,
+	FrontSide: FrontSide,
+	BackSide: BackSide,
+	DoubleSide: DoubleSide,
+	FlatShading: FlatShading,
+	SmoothShading: SmoothShading,
+	NoColors: NoColors,
+	FaceColors: FaceColors,
+	VertexColors: VertexColors,
+	NoBlending: NoBlending,
+	NormalBlending: NormalBlending,
+	AdditiveBlending: AdditiveBlending,
+	SubtractiveBlending: SubtractiveBlending,
+	MultiplyBlending: MultiplyBlending,
+	CustomBlending: CustomBlending,
+	BlendingMode: BlendingMode,
+	AddEquation: AddEquation,
+	SubtractEquation: SubtractEquation,
+	ReverseSubtractEquation: ReverseSubtractEquation,
+	MinEquation: MinEquation,
+	MaxEquation: MaxEquation,
+	ZeroFactor: ZeroFactor,
+	OneFactor: OneFactor,
+	SrcColorFactor: SrcColorFactor,
+	OneMinusSrcColorFactor: OneMinusSrcColorFactor,
+	SrcAlphaFactor: SrcAlphaFactor,
+	OneMinusSrcAlphaFactor: OneMinusSrcAlphaFactor,
+	DstAlphaFactor: DstAlphaFactor,
+	OneMinusDstAlphaFactor: OneMinusDstAlphaFactor,
+	DstColorFactor: DstColorFactor,
+	OneMinusDstColorFactor: OneMinusDstColorFactor,
+	SrcAlphaSaturateFactor: SrcAlphaSaturateFactor,
+	NeverDepth: NeverDepth,
+	AlwaysDepth: AlwaysDepth,
+	LessDepth: LessDepth,
+	LessEqualDepth: LessEqualDepth,
+	EqualDepth: EqualDepth,
+	GreaterEqualDepth: GreaterEqualDepth,
+	GreaterDepth: GreaterDepth,
+	NotEqualDepth: NotEqualDepth,
+	MultiplyOperation: MultiplyOperation,
+	MixOperation: MixOperation,
+	AddOperation: AddOperation,
+	NoToneMapping: NoToneMapping,
+	LinearToneMapping: LinearToneMapping,
+	ReinhardToneMapping: ReinhardToneMapping,
+	Uncharted2ToneMapping: Uncharted2ToneMapping,
+	CineonToneMapping: CineonToneMapping,
+	UVMapping: UVMapping,
+	CubeReflectionMapping: CubeReflectionMapping,
+	CubeRefractionMapping: CubeRefractionMapping,
+	EquirectangularReflectionMapping: EquirectangularReflectionMapping,
+	EquirectangularRefractionMapping: EquirectangularRefractionMapping,
+	SphericalReflectionMapping: SphericalReflectionMapping,
+	CubeUVReflectionMapping: CubeUVReflectionMapping,
+	CubeUVRefractionMapping: CubeUVRefractionMapping,
+	TextureMapping: TextureMapping,
+	RepeatWrapping: RepeatWrapping,
+	ClampToEdgeWrapping: ClampToEdgeWrapping,
+	MirroredRepeatWrapping: MirroredRepeatWrapping,
+	TextureWrapping: TextureWrapping,
+	NearestFilter: NearestFilter,
+	NearestMipMapNearestFilter: NearestMipMapNearestFilter,
+	NearestMipMapLinearFilter: NearestMipMapLinearFilter,
+	LinearFilter: LinearFilter,
+	LinearMipMapNearestFilter: LinearMipMapNearestFilter,
+	LinearMipMapLinearFilter: LinearMipMapLinearFilter,
+	TextureFilter: TextureFilter,
+	UnsignedByteType: UnsignedByteType,
+	ByteType: ByteType,
+	ShortType: ShortType,
+	UnsignedShortType: UnsignedShortType,
+	IntType: IntType,
+	UnsignedIntType: UnsignedIntType,
+	FloatType: FloatType,
+	HalfFloatType: HalfFloatType,
+	UnsignedShort4444Type: UnsignedShort4444Type,
+	UnsignedShort5551Type: UnsignedShort5551Type,
+	UnsignedShort565Type: UnsignedShort565Type,
+	UnsignedInt248Type: UnsignedInt248Type,
+	AlphaFormat: AlphaFormat,
+	RGBFormat: RGBFormat,
+	RGBAFormat: RGBAFormat,
+	LuminanceFormat: LuminanceFormat,
+	LuminanceAlphaFormat: LuminanceAlphaFormat,
+	RGBEFormat: RGBEFormat,
+	DepthFormat: DepthFormat,
+	DepthStencilFormat: DepthStencilFormat,
+	RGB_S3TC_DXT1_Format: RGB_S3TC_DXT1_Format,
+	RGBA_S3TC_DXT1_Format: RGBA_S3TC_DXT1_Format,
+	RGBA_S3TC_DXT3_Format: RGBA_S3TC_DXT3_Format,
+	RGBA_S3TC_DXT5_Format: RGBA_S3TC_DXT5_Format,
+	RGB_PVRTC_4BPPV1_Format: RGB_PVRTC_4BPPV1_Format,
+	RGB_PVRTC_2BPPV1_Format: RGB_PVRTC_2BPPV1_Format,
+	RGBA_PVRTC_4BPPV1_Format: RGBA_PVRTC_4BPPV1_Format,
+	RGBA_PVRTC_2BPPV1_Format: RGBA_PVRTC_2BPPV1_Format,
+	RGB_ETC1_Format: RGB_ETC1_Format,
+	LoopOnce: LoopOnce,
+	LoopRepeat: LoopRepeat,
+	LoopPingPong: LoopPingPong,
+	InterpolateDiscrete: InterpolateDiscrete,
+	InterpolateLinear: InterpolateLinear,
+	InterpolateSmooth: InterpolateSmooth,
+	ZeroCurvatureEnding: ZeroCurvatureEnding,
+	ZeroSlopeEnding: ZeroSlopeEnding,
+	WrapAroundEnding: WrapAroundEnding,
+	TrianglesDrawMode: TrianglesDrawMode,
+	TriangleStripDrawMode: TriangleStripDrawMode,
+	TriangleFanDrawMode: TriangleFanDrawMode,
+	LinearEncoding: LinearEncoding,
+	sRGBEncoding: sRGBEncoding,
+	GammaEncoding: GammaEncoding,
+	RGBEEncoding: RGBEEncoding,
+	LogLuvEncoding: LogLuvEncoding,
+	RGBM7Encoding: RGBM7Encoding,
+	RGBM16Encoding: RGBM16Encoding,
+	RGBDEncoding: RGBDEncoding,
+	BasicDepthPacking: BasicDepthPacking,
+	RGBADepthPacking: RGBADepthPacking,
+	CubeGeometry: BoxGeometry,
+	Face4: Face4,
+	LineStrip: LineStrip,
+	LinePieces: LinePieces,
+	MeshFaceMaterial: MultiMaterial,
+	PointCloud: PointCloud,
+	Particle: Sprite,
+	ParticleSystem: ParticleSystem,
+	PointCloudMaterial: PointCloudMaterial,
+	ParticleBasicMaterial: ParticleBasicMaterial,
+	ParticleSystemMaterial: ParticleSystemMaterial,
+	Vertex: Vertex,
+	EdgesHelper: EdgesHelper,
+	WireframeHelper: WireframeHelper,
+	GeometryUtils: GeometryUtils,
+	ImageUtils: ImageUtils,
+	Projector: Projector,
+	CanvasRenderer: CanvasRenderer
+});
+
+var require$$0 = ( three_modules && three_modules['default'] ) || three_modules;
 
 // A DXF Loader for three.js
 // based heavily on three-dxf 0.1.2
@@ -39787,6 +42309,10 @@ Object.defineProperty( exports, 'AudioContext', {
  * @param  {Object} p2 end point of the vector
  * @return {Number} the angle
  */
+
+var THREE = require$$0;
+
+//var THREE = THREELib();
 
 THREE.Math.angle2 = function (p1, p2) {
     var v1 = new THREE.Vector2(p1.x, p1.y);
@@ -40150,5 +42676,9 @@ THREE.DXFLoader.prototype = {
     }
 
 };
+
+var index = {};
+
+return index;
 
 }());
