@@ -5,7 +5,7 @@
 // Depends on dxf-parser
 // https://github.com/gdsestimating/dxf-parser
 
-import DXFParser from 'dxf-parser';
+import DxfParser from 'dxf-parser';
 
 /**
  * Returns the angle in radians of the vector (p1,p2). In other words, imagine
