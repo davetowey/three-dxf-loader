@@ -245,8 +245,9 @@ THREE.DXFLoader.prototype = {
     }
 
     function drawSolid(entity, data) {
-        var material, mesh, verts,
-            geometry = new THREE.Geometry();
+
+				var material, mesh, verts,
+        geometry = new THREE.Geometry();
 
         verts = geometry.vertices;
         verts.push(new THREE.Vector3(entity.points[0].x, entity.points[0].y, entity.points[0].z));
@@ -269,7 +270,6 @@ THREE.DXFLoader.prototype = {
             geometry.faces.push(new THREE.Face3(0, 1, 2));
             geometry.faces.push(new THREE.Face3(0, 3, 2));
         }
-
 
         material = new THREE.MeshBasicMaterial({ color: getColor(entity, data) });
 
@@ -317,7 +317,7 @@ THREE.DXFLoader.prototype = {
 
         material = new THREE.PointsMaterial( { size: 0.05, vertexColors: THREE.VertexColors } );
         point = new THREE.Points(geometry, material);
-        scene.add(point);
+        return point;
     }
 
     function drawBlock(entity, data) {
