@@ -2332,6 +2332,7 @@ module.exports = function (THREE) {
             }
 
             function drawSolid(entity, data) {
+
                 var material,
                     mesh,
                     verts,
@@ -2403,7 +2404,7 @@ module.exports = function (THREE) {
 
                 material = new THREE.PointsMaterial({ size: 0.05, vertexColors: THREE.VertexColors });
                 point = new THREE.Points(geometry, material);
-                scene.add(point);
+                return point;
             }
 
             function drawBlock(entity, data) {
